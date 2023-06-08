@@ -1,7 +1,6 @@
 import 'package:authentication_repository/authentication_repository.dart';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:meta/meta.dart';
 
 part 'auth_state.dart';
 
@@ -27,19 +26,26 @@ class AuthCubit extends Cubit<AuthState> {
     });
   }
 
-  Future<void> login({required String email, required String password}) async {
-    final user = await authRepo.logInWithEmailAndPassword(email: email, password: password);
-    emit(state.copyWith(status: AuthStatus.authenticated, user: user));
+  Future<RequestStatus<UserProfile?>> login({required String email, required String password}) async {
+    final result = await authRepo.logInWithEmailAndPassword(
+        email: email, password: password);
+    if (result.status == RequestStatus.SUCCESS) {
+      emit(state.copyWith(status: AuthStatus.authenticated, user: result.body));
+    } return result;
   }
 
-  Future<void> signup({required String email, required String password}) async {
-    final user = await authRepo.signUp(email: email, password: password);
-    emit(state.copyWith(status: AuthStatus.authenticated, user: user));
+  Future<RequestStatus<UserProfile?>> signup({required String email, required String password}) async {
+    final result = await authRepo.signUp(email: email, password: password);
+    if (result.status == RequestStatus.SUCCESS) {
+      emit(state.copyWith(status: AuthStatus.authenticated, user: result.body));
+    } return result;
   }
 
-  void logOut() {
-    authRepo.logOut();
-    emit(state.copyWith(status: AuthStatus.unauthenticated));
+  Future<RequestStatus<BaseResponse?>> logOut() async {
+    final result = await authRepo.logOut();
+    if (result.status == RequestStatus.SUCCESS) {
+      emit(state.copyWith(status: AuthStatus.unauthenticated, user: UserProfile.empty));
+    } return result;
   }
 
 }

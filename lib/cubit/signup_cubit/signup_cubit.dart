@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:authentication_repository/authentication_repository.dart';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
@@ -36,8 +38,16 @@ class SignupCubit extends Cubit<SignupState> {
   void onButtonPressed() async {
     emit(state.copyWith(status: FormzSubmissionStatus.inProgress));
     await Future.delayed(const Duration(seconds: 3));
-    await auth.signup(
-        email: state.email.value, password: state.password.value);
-    emit(state.copyWith(status: FormzSubmissionStatus.success));
+    try {
+      final res = await auth.signup(
+          email: state.email.value, password: state.password.value);
+      if(res.status == RequestStatus.SUCCESS) {
+        emit(state.copyWith(status: FormzSubmissionStatus.success));
+      } else {
+        emit(state.copyWith(status: FormzSubmissionStatus.failure, msg: res.message));
+      }
+    } on Exception catch(e) {
+      log(e.toString());
+    }
   }
 }

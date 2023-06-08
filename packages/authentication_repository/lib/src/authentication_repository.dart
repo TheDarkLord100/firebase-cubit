@@ -27,7 +27,7 @@ class AuthenticationRepository {
     });
   }
 
-  Future<RequestStatus<UserProfile>?> signUp(
+  Future<RequestStatus<UserProfile?>> signUp(
       {required String email, required String password}) async {
     try {
       await _firebaseAuth.createUserWithEmailAndPassword(
@@ -64,7 +64,7 @@ class AuthenticationRepository {
   //   }
   // }
 
-  Future<RequestStatus<UserProfile>?> logInWithEmailAndPassword({
+  Future<RequestStatus<UserProfile?>> logInWithEmailAndPassword({
     required String email,
     required String password,
   }) async {
@@ -81,7 +81,7 @@ class AuthenticationRepository {
     }
   }
 
-  Future<RequestStatus<BaseResponse>?> logOut() async {
+  Future<RequestStatus<BaseResponse?>> logOut() async {
     try {
       await _firebaseAuth.signOut();
       return RequestStatus(
