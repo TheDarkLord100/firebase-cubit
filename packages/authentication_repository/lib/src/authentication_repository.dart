@@ -1,71 +1,70 @@
 import 'dart:developer';
-
+import 'package:authentication_repository/authentication_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'models/models.dart';
 
-class AuthenticationRepository{
-
-  AuthenticationRepository({FirebaseAuth? firebaseAuth, GoogleSignIn? googleSignIn}) :
-    _googleSignIn = googleSignIn ?? GoogleSignIn.standard(),
-    _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
+class AuthenticationRepository {
+  AuthenticationRepository(
+      {FirebaseAuth? firebaseAuth, GoogleSignIn? googleSignIn})
+      : //_googleSignIn = googleSignIn ?? GoogleSignIn.standard(),
+        _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
 
   static SharedPreferences? pref;
   final FirebaseAuth _firebaseAuth;
-  final GoogleSignIn _googleSignIn;
+  // final GoogleSignIn _googleSignIn;
 
   Future<bool> isSignedIn() async {
-    bool signedIn = (await user.first == UserProfile.empty)? false : true;
+    bool signedIn = (await user.first == UserProfile.empty) ? false : true;
     return signedIn;
   }
 
   Stream<UserProfile> get user {
     return _firebaseAuth.authStateChanges().map((fireBaseUser) {
-      final user = fireBaseUser == null ? UserProfile.empty : fireBaseUser.toUser;
+      final user =
+          fireBaseUser == null ? UserProfile.empty : fireBaseUser.toUser;
       return user;
     });
   }
 
-  Future<UserProfile> signUp({required String email, required String password}) async {
+  Future<RequestStatus<UserProfile>?> signUp(
+      {required String email, required String password}) async {
     try {
-      final result = await _firebaseAuth.createUserWithEmailAndPassword(email: email, password: password);
-      print(result);
+      await _firebaseAuth.createUserWithEmailAndPassword(
+          email: email, password: password);
       final currentUser = await user.first;
-      print(currentUser);
-      return currentUser;
+      return RequestStatus(
+          status: RequestStatus.SUCCESS, message: null, body: currentUser);
     } on FirebaseAuthException catch (e) {
-      log(e.message.toString());
-    }
-    return UserProfile.empty;
-  }
-
-  Future<void> logInWithGoogle() async {
-    try {
-      late final AuthCredential credential;
-      if (kIsWeb) {
-        final googleProvider = GoogleAuthProvider();
-        final userCredential = await _firebaseAuth.signInWithPopup(
-          googleProvider,
-        );
-        credential = userCredential.credential!;
-      } else {
-        final googleUser = await _googleSignIn.signIn();
-        final googleAuth = await googleUser!.authentication;
-        credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-      }
-
-      await _firebaseAuth.signInWithCredential(credential);
-    } on FirebaseAuthException catch (e) {
-      log(e.message.toString());
+      return getErrorMsg<UserProfile>(e.code);
     }
   }
 
-  Future<UserProfile> logInWithEmailAndPassword({
+  // Future<void> logInWithGoogle() async {
+  //   try {
+  //     late final AuthCredential credential;
+  //     if (kIsWeb) {
+  //       final googleProvider = GoogleAuthProvider();
+  //       final userCredential = await _firebaseAuth.signInWithPopup(
+  //         googleProvider,
+  //       );
+  //       credential = userCredential.credential!;
+  //     } else {
+  //       final googleUser = await _googleSignIn.signIn();
+  //       final googleAuth = await googleUser!.authentication;
+  //       credential = GoogleAuthProvider.credential(
+  //         accessToken: googleAuth.accessToken,
+  //         idToken: googleAuth.idToken,
+  //       );
+  //     }
+  //
+  //     await _firebaseAuth.signInWithCredential(credential);
+  //   } on FirebaseAuthException catch (e) {
+  //     log(e.message.toString());
+  //   }
+  // }
+
+  Future<RequestStatus<UserProfile>?> logInWithEmailAndPassword({
     required String email,
     required String password,
   }) async {
@@ -75,27 +74,63 @@ class AuthenticationRepository{
         password: password,
       );
       final currentUser = await user.first;
-      return currentUser;
+      return RequestStatus(
+          status: RequestStatus.SUCCESS, message: null, body: currentUser);
     } on FirebaseAuthException catch (e) {
-      log(e.message.toString());
+      return getErrorMsg<UserProfile>(e.code);
     }
-    return UserProfile.empty;
   }
 
-  Future<void> logOut() async {
+  Future<RequestStatus<BaseResponse>?> logOut() async {
     try {
-      await Future.wait([
-        _firebaseAuth.signOut(),
-        // _googleSignIn.signOut(),
-      ]);
+      await _firebaseAuth.signOut();
+      return RequestStatus(
+          status: RequestStatus.SUCCESS,
+          body: BaseResponse(
+              success: true,
+              statusCode: 1,
+              message: 'Logged out successfully'));
     } on FirebaseAuthException catch (e) {
-      log(e.message.toString());
+      return getErrorMsg<BaseResponse>(e.code);
     }
+  }
+
+  RequestStatus<T> getErrorMsg<T>(String err) {
+    String errorMsg = '';
+    switch (err) {
+      case 'invalid-email':
+        errorMsg = 'Invalid Email';
+        break;
+      case 'wrong-password':
+        errorMsg = 'Wrong Password';
+        break;
+      case 'user-not-found':
+        errorMsg = 'User does not exists';
+        break;
+      case 'user-disabled':
+        errorMsg = 'User has been disabled';
+        break;
+      case 'weak-password':
+        errorMsg = 'The password is too weak';
+        break;
+      case 'operation-not-allowed':
+        errorMsg = 'Invalid Operation';
+        break;
+      case 'email-already-in-use':
+        errorMsg = 'Email already in use';
+        break;
+      default:
+        log(err);
+        errorMsg = 'Something went wrong';
+        break;
+    }
+    return RequestStatus(status: RequestStatus.FAILURE, message: errorMsg);
   }
 }
 
 extension on User {
   UserProfile get toUser {
-    return UserProfile(id: uid, email: email, name: displayName, profileUrl: photoURL);
+    return UserProfile(
+        id: uid, email: email, name: displayName, profileUrl: photoURL);
   }
 }
